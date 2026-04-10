@@ -364,6 +364,8 @@ All screenshots are in the [`/Screenshots`](./Screenshots/) folder.
 | `shop.png` | Shop page — product listing with categories |
 | `product_listing.png` | Product detail page — subscription plan with pricing |
 | `cart.png` | Shopping cart with subscription product and setup fee |
+| `checkout.png` | Checkout — saved Revolut card, 3-step flow, order summary |
+| `profile.png` | Customer portal — active subscriptions, plan, payment provider |
 | `admin.png` | Admin dashboard — product management panel |
 
 ---
