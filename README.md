@@ -44,11 +44,23 @@ A fully managed, subscription-based platform that delivers professional websites
 - Full e-commerce system (products, categories, cart, checkout, orders)
 - Customer portal with OAuth login, order history, and subscription management
 - Admin dashboard for content, shop settings, orders, and analytics
-- Payment integrations: **Stripe** and **Revolut** (including subscriptions and webhooks)
 - AI-powered semantic search for product discovery
 - Integrated AI chatbot (optional upgrade)
 - Multi-tenant architecture — one platform, many shops
 - Custom domain support
+
+**Payment & Subscription Infrastructure:**
+
+TEX8 Web Solutions includes a production-grade payment and subscription system built on top of both **Stripe** and **Revolut** — not just one-time payments, but full recurring billing with lifecycle management.
+
+- **One-time payments** via Stripe and Revolut (card, saved payment methods)
+- **Recurring subscriptions** via both providers — monthly billing, plan upgrades/downgrades
+- **Revolut MIT** (Merchant Initiated Transactions) — the platform can charge saved cards server-side without requiring the customer to re-authenticate each billing cycle
+- **Stripe subscription lifecycle** — handles `invoice.payment_succeeded`, `invoice.payment_failed`, `customer.subscription.updated`, `customer.subscription.deleted`, fraud warnings, dispute events, and more via registered webhooks
+- **Webhook-first confirmation flow** — payments are never confirmed by the API response alone; the frontend polls for status while the webhook triggers order confirmation in the background, making the flow robust against network interruptions
+- **Subscription plan hierarchy** — platform tracks the customer's highest active plan across all subscriptions and syncs it into their JWT, so feature access is always accurate in real time
+- **Customer subscription management** — customers can view, upgrade, and manage their subscriptions from the self-service portal
+- **Admin subscription controls** — full visibility and management from the admin dashboard
 
 **Tech Stack:**
 - Node.js + Express (backend & server-side rendering with EJS)
