@@ -14,6 +14,8 @@ This repository contains a public technical and product overview — no source c
 
 TEX8 is built as a microservices architecture where a suite of Rust-based backend services powers multiple customer-facing products — from websites and online shops to AI assistants and semantic search.
 
+A key design principle is **on-premise AI**: all inference (embeddings, speech, image generation, video generation) runs on self-hosted hardware — no third-party AI API dependency for core features.
+
 ```
 TEX8 Platform
 ├── TEX8 Web Solutions         ← Live SaaS product (websites & shops)
@@ -22,7 +24,9 @@ TEX8 Platform
 ├── Auth Service               ← OAuth, JWT, sessions, 2FA
 ├── Content Service            ← Media & file management
 ├── Notification Service       ← Email, WhatsApp, Telegram, Instagram
-├── Embedding Service          ← ML embeddings (gRPC)
+├── Embedding Service          ← On-premise ML embeddings (gRPC)
+├── AI Runtime Service         ← GPU job orchestration & worker management
+├── AI GPU Worker              ← On-premise inference: STT, TTS, image, video
 └── TEX8 AI Marketplace        ← Phase 2: AI-native marketplace + mobile app
 ```
 
@@ -67,7 +71,7 @@ An intelligent chatbot service that can be embedded into any customer website on
 - Conversation summarization
 - Per-shop knowledge base management via admin API
 - Free tier (10 messages) + subscription-gated full access
-- LLM provider: **OpenRouter** (model-agnostic)
+- LLM provider: **OpenRouter** (model-agnostic, cloud) — with on-premise inference path planned
 
 **Tech Stack:** Rust (Axum), MongoDB, Weaviate, OpenRouter
 
@@ -85,7 +89,7 @@ Semantic product and content search using vector embeddings and Weaviate.
 - Graceful shutdown, request timeouts, health checks
 - Integration: JWT-authenticated, shop-scoped
 
-**Tech Stack:** Rust (Axum), Weaviate, Redis, custom embedding service
+**Tech Stack:** Rust (Axum), Weaviate, Redis, Embedding Service (on-premise)
 
 ---
 
@@ -135,28 +139,87 @@ Centralized media and file management for all customer websites.
 ### Embedding Service
 **Status: Production-Ready**
 
-High-performance ML embedding service used internally by the Search and AI Assistant services.
+High-performance, **on-premise** ML embedding service. All embeddings are computed locally — no data leaves the infrastructure.
 
-- Model: **Qwen3-Embedding-8B**
+- Model: **Qwen3-Embedding-8B** (self-hosted, quantized)
 - Transport: gRPC
 - Used for: semantic search indexing, RAG memory, product vectorization
+- Warm/evict VRAM semantics — stays active while GPU headroom allows
 
-**Tech Stack:** Python (gRPC / FastAPI), GPU-ready
+**Tech Stack:** Python (gRPC), runs on self-hosted GPU server
 
 ---
 
-### TEX8 AI Marketplace *(Phase 2)*
+### AI Runtime Service + AI GPU Worker
 **Status: In Development**
 
-A next-generation AI-native marketplace platform with:
+The AI Runtime Service is TEX8's GPU job orchestration layer. It manages a fleet of AI GPU Workers and routes inference jobs to available hardware — locally, on the TEX8 server, or on rented GPU capacity (e.g. Vast.ai).
+
+**AI GPU Worker capabilities (on-premise inference):**
+
+| Lane | Model | Description |
+|------|-------|-------------|
+| **STT** | Qwen3-ASR-1.7B | Speech-to-text, on-premise |
+| **TTS** | Qwen3-TTS-1.7B | Text-to-speech, on-premise |
+| **Embedding** | Qwen3-Embedding-8B | Vector embeddings, warm lane |
+| **Image** | Qwen-Image / Qwen-Image-Edit | Image generation & editing, 8-bit |
+| **Video** | WAN 2.2 (T2V, I2V, Animate) | Text-to-video, image-to-video, animation, 8-bit |
+| **FFmpeg** | ffmpeg-video-edit | Video processing & composition |
+
+**Design:**
+- Worker registers with the runtime, advertises capabilities, pulls jobs
+- VRAM-aware scheduling: only one heavy lane (image/video) in GPU memory at a time
+- Embedding lane can be evicted and automatically re-activated after heavy jobs
+- Model prefetch at startup: no cold-start penalty in production
+- Deployable locally (Docker), on the TEX8 server, or on cloud GPU rentals
+
+**Tech Stack:** Rust (worker binary + runtime), Python (model scripts), Docker
+
+---
+
+### TEX8 AI Marketplace + Mobile App *(Phase 2)*
+**Status: In Development**
+
+A next-generation AI-native marketplace platform with a fully LLM-controlled React Native mobile app for iOS and Android.
+
+**Platform:**
 - Multi-vendor product listings
 - AI-powered semantic search and personalized recommendations
 - Fast local delivery infrastructure
-- React Native mobile app (iOS & Android)
+- All TEX8 Rust microservices as cloud backend (auth, search, AI assistant, payments, content)
 
-This product leverages all existing TEX8 platform services (auth, search, AI assistant, payments, content) as its cloud backend.
+**React Native App — what makes it different:**
 
-**Tech Stack:** React Native (TypeScript), all TEX8 Rust microservices
+The mobile app is built with LLM-first control in mind. Rather than hardcoded UI flows, the app exposes its navigation, actions, and state to an LLM agent — enabling the AI to drive the user experience, fill forms, trigger searches, and respond to context dynamically.
+
+- **TypeScript** throughout — typed interfaces for every screen and action
+- **Local LLM module** — on-device model inference integrated directly into the app (no cloud round-trip for supported tasks)
+- **LLM-controlled navigation** — the agent can navigate screens, trigger actions, and respond to user intent in natural language
+- **AI chat layer** — chat interface connected to both local inference and TEX8 cloud services
+- **SQLite + async storage** — local persistence for offline capability and fast startup
+- **Multi-language support** — i18n module built in from day one
+- **OAuth integration** — seamless login via TEX8 Auth Service
+- **Marketplace screens** — product discovery, AI-powered marketplace chat, seller interaction
+- **Modular architecture** — clear separation of core, modules, screens, services, and navigation
+- Built and maintained by a single developer end-to-end (design → native iOS/Android → AI integration → backend wiring)
+
+**Tech Stack:** React Native (TypeScript), llama.cpp / on-device inference, TEX8 Rust microservices, SQLite
+
+---
+
+## On-Premise AI Stack
+
+TEX8 runs its own AI infrastructure — no dependency on OpenAI, Google, or any external inference provider for core services.
+
+| Capability | Model | Where |
+|-----------|-------|-------|
+| Text embeddings | Qwen3-Embedding-8B | Self-hosted GPU server |
+| Speech-to-text | Qwen3-ASR-1.7B | Self-hosted GPU worker |
+| Text-to-speech | Qwen3-TTS-1.7B | Self-hosted GPU worker |
+| Image generation | Qwen-Image (8-bit) | Self-hosted GPU worker |
+| Video generation | WAN 2.2 T2V / I2V (8-bit) | Self-hosted GPU worker |
+| LLM (cloud fallback) | OpenRouter | Cloud (model-agnostic) |
+| Mobile LLM | On-device inference | React Native app |
 
 ---
 
@@ -170,6 +233,7 @@ This product leverages all existing TEX8 platform services (auth, search, AI ass
 | **MinIO** | Object storage (images, files) |
 | **Docker Compose** | Service orchestration |
 | **Nginx** | Reverse proxy, SSL termination |
+| **Self-hosted GPU server** | On-premise AI inference |
 
 ---
 
@@ -180,7 +244,8 @@ This product leverages all existing TEX8 platform services (auth, search, AI ass
 | **Microservices** | Rust (Axum framework) |
 | **Customer Websites** | Node.js, Express, EJS |
 | **Mobile App** | React Native (TypeScript) |
-| **AI / ML** | Python, gRPC, Qwen3-Embedding-8B, OpenRouter |
+| **On-premise AI** | Python, gRPC, Qwen3 family, WAN 2.2 |
+| **LLM (cloud)** | OpenRouter (model-agnostic) |
 | **Vector DB** | Weaviate |
 | **Primary DB** | MongoDB |
 | **Cache / Sessions** | Dragonfly / Redis |
