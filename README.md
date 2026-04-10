@@ -353,7 +353,18 @@ TEX8 Web Solutions operates on a **subscription model**:
 
 ## Screenshots
 
-*Coming soon — Screenshots and UI previews will be added to the `/screenshots` folder.*
+All screenshots are in the [`/Screenshots`](./Screenshots/) folder.
+
+| File | What it shows |
+|------|--------------|
+| `main_page_light_main_slider.png` | Homepage — Hero section (light mode) |
+| `main_page_dark_ai_agent.png` | Homepage — AI Agent section (dark mode) |
+| `main_page_dark_app.png` | Homepage — iOS & Android App section (dark mode) |
+| `main_page_ai_assistent_popup.png` | Homepage — AI Assistant chat popup live |
+| `shop.png` | Shop page — product listing with categories |
+| `product_listing.png` | Product detail page — subscription plan with pricing |
+| `cart.png` | Shopping cart with subscription product and setup fee |
+| `admin.png` | Admin dashboard — product management panel |
 
 ---
 
